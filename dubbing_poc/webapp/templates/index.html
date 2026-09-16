@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>dubbing_poc</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 1.4rem; }
+  fieldset { margin-bottom: 16px; border: 1px solid #ccc; border-radius: 6px; }
+  label { display: block; margin: 8px 0 4px; font-weight: 600; }
+  select, input[type=file], input[type=text] { width: 100%; padding: 6px; box-sizing: border-box; }
+  .quality-opt { display: flex; gap: 16px; margin: 8px 0; }
+  .quality-opt label { font-weight: normal; display: flex; align-items: center; gap: 6px; }
+  button { padding: 10px 20px; font-size: 1rem; cursor: pointer; }
+  #status { margin-top: 16px; padding: 10px; border-radius: 6px; background: #f4f4f4; display: none; }
+  #status.error { background: #fdd; }
+  #status.done { background: #dfd; }
+  .hint { color: #666; font-size: 0.85rem; margin-top: 4px; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin: 8px 0 4px; }
+  .slider-row label { margin: 0; font-weight: normal; flex: 0 0 auto; min-width: 100px; }
+  .slider-row input[type=range] { flex: 1 1 auto; width: auto; }
+  .slider-row .slider-value { flex: 0 0 auto; min-width: 34px; text-align: right; font-variant-numeric: tabular-nums; color: #444; font-size: 0.85rem; }
+  #xtts-fields, #espeak-fields, #kokoro-fields { display: none; }
+
+  .mode-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .mode-tabs button { flex: 1; padding: 8px; background: #eee; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+  .mode-tabs button.active { background: #4a7; color: white; border-color: #4a7; }
+  #batch-panel, #reprocess-panel { display: none; }
+  #batch-results { margin-top: 8px; font-size: 0.85rem; }
+  #batch-results .ok { color: #2a6; }
+  #batch-results .fail { color: #c33; }
+  #batch-results .skip { color: #b80; }
+
+  #progress-wrap { margin-top: 10px; display: none; }
+  .progress-track { width: 100%; height: 18px; background: #e0e0e0; border-radius: 9px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; transition: width 0.4s ease; }
+  #progress-bar { background: #4a7; }
+  #batch-progress-bar { background: #47a; }
+  .progress-label { font-size: 0.8rem; color: #555; margin-top: 2px; text-align: right; }
+  #eta { font-size: 0.85rem; color: #444; margin-top: 6px; text-align: right; }
+  #eta .eta-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  #terminal-wrap { margin-top: 12px; display: none; }
+  #terminal {
+    background: #111; color: #ddd; font-family: Consolas, Menlo, monospace;
+    font-size: 0.8rem; padding: 10px; border-radius: 6px; height: 220px;
+    overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  #terminal .line { padding: 1px 0; }
+  #terminal .err { color: #f77; }
+</style>
+</head>
+<body>
+  <h1>dubbing_poc — cambiar voz de un video</h1>
+  <p class="hint">Ej: video narrado con acento indio → salida con voz de acento estadounidense (elegí idioma "en" e inglés US como voz destino).</p>
+
+  <div class="mode-tabs">
+    <button type="button" id="tab-single" class="active">Un video</button>
+    <button type="button" id="tab-batch">Lote (carpeta)</button>
+    <button type="button" id="tab-reprocess">Reprocesar (otra voz)</button>
+  </div>
+
+  <form id="form">
+    <div id="single-panel">
+      <fieldset>
+        <label for="video">Video de entrada</label>
+        <input type="file" id="video" name="video" accept="video/*">
+        <label for="single_output_dir">Carpeta destino (opcional)</label>
+        <input type="text" id="single_output_dir" name="single_output_dir" placeholder="C:\Videos\salida (vacío = carpeta por defecto)">
+        <p class="hint">Si se deja vacío, se guarda en la carpeta de salida por defecto de la app. Si ya existe un archivo con el mismo nombre de salida en la carpeta destino, se lo saltea (se avisa en la consola de abajo).</p>
+      </fieldset>
+    </div>
+
+    <div id="batch-panel">
+      <fieldset>
+        <label for="source_dir">Carpeta origen (con los videos a procesar)</label>
+        <input type="text" id="source_dir" name="source_dir" placeholder="C:\Videos\entrada">
+        <label for="output_dir">Carpeta destino (donde se guardan los resultados)</label>
+        <input type="text" id="output_dir" name="output_dir" placeholder="C:\Videos\salida">
+        <p class="hint">Procesa todos los videos (.mp4, .mkv, .mov, .avi, .webm, .m4v) que encuentre en la carpeta origen, uno por uno, con la misma voz/calidad elegida abajo.</p>
+      </fieldset>
+    </div>
+
+    <div id="reprocess-panel">
+      <fieldset>
+        <label for="transcript_path">Archivo de transcripción (.dubbing_poc.json)</label>
+        <input type="text" id="transcript_path" name="transcript_path" placeholder="C:\Videos\salida\mi_video_voz_es-f1.dubbing_poc.json">
+        <p class="hint">Se genera automáticamente junto a cada video procesado. Reusa la transcripción guardada ahí para generar el mismo video con otra voz, sin volver a transcribir (mucho más rápido). El video original debe seguir existiendo en su ubicación de entrada.</p>
+      </fieldset>
+    </div>
+
+    <fieldset>
+      <label>Calidad de voz</label>
+      <div class="quality-opt">
+        <label><input type="radio" name="quality" value="fast" checked> Rápida (espeak-ng, robótica)</label>
+        <label><input type="radio" name="quality" value="kokoro"> Kokoro-82M (natural, punto medio)</label>
+        <label><input type="radio" name="quality" value="hq"> Alta calidad (XTTS, natural, más lenta)</label>
+      </div>
+
+      <div id="espeak-fields">
+        <label for="espeak_voice">Voz (espeak)</label>
+        <select id="espeak_voice" name="espeak_voice">
+          {% for v in espeak_voices %}
+          <option value="{{ v }}" {% if v == 'en-m1' %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+
+        <div class="slider-row">
+          <label for="espeak_speed">Velocidad</label>
+          <input type="range" id="espeak_speed" name="espeak_speed" min="80" max="260" step="5" value="165">
+          <span class="slider-value" id="espeak_speed_val">165</span>
+        </div>
+        <div class="slider-row">
+          <label for="espeak_pitch">Tono</label>
+          <input type="range" id="espeak_pitch" name="espeak_pitch" min="0" max="99" step="1" value="50">
+          <span class="slider-value" id="espeak_pitch_val">50</span>
+        </div>
+        <div class="slider-row">
+          <label for="espeak_volume">Volumen</label>
+          <input type="range" id="espeak_volume" name="espeak_volume" min="0" max="200" step="5" value="100">
+          <span class="slider-value" id="espeak_volume_val">100</span>
+        </div>
+      </div>
+
+      <div id="kokoro-fields">
+        <label for="kokoro_voice">Voz (Kokoro)</label>
+        <select id="kokoro_voice" name="kokoro_voice">
+          {% for v in kokoro_voices %}
+          <option value="{{ v }}" {% if v == 'en-m1' %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+
+        <div class="slider-row">
+          <label for="kokoro_speed">Velocidad</label>
+          <input type="range" id="kokoro_speed" name="kokoro_speed" min="0.5" max="2" step="0.05" value="1">
+          <span class="slider-value" id="kokoro_speed_val">1.0</span>
+        </div>
+      </div>
+
+      <div id="xtts-fields">
+        <label for="xtts_voice">Voz incorporada (acento US)</label>
+        <select id="xtts_voice" name="xtts_voice">
+          {% for v in xtts_voices %}
+          <option value="{{ v }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+        <p class="hint">O subí una muestra de voz (6-10s, wav/mp3) para clonar un hablante específico en vez de usar la lista de arriba:</p>
+        <label for="voice_sample">Muestra de voz (opcional)</label>
+        <input type="file" id="voice_sample" name="voice_sample" accept="audio/*">
+
+        <div class="slider-row">
+          <label for="xtts_speed">Velocidad</label>
+          <input type="range" id="xtts_speed" name="xtts_speed" min="0.5" max="2" step="0.05" value="1">
+          <span class="slider-value" id="xtts_speed_val">1.0</span>
+        </div>
+        <div class="slider-row">
+          <label for="xtts_temperature">Expresividad</label>
+          <input type="range" id="xtts_temperature" name="xtts_temperature" min="0.1" max="1" step="0.05" value="0.65">
+          <span class="slider-value" id="xtts_temperature_val">0.65</span>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset id="language-fieldset">
+      <label for="language">Idioma del habla</label>
+      <select id="language" name="language">
+        <option value="en" selected>Inglés (en)</option>
+        <option value="es">Español (es)</option>
+      </select>
+
+      <label for="asr_model_size">Modelo de transcripción (Whisper)</label>
+      <select id="asr_model_size" name="asr_model_size">
+        <option value="tiny">tiny (rápido, menos preciso)</option>
+        <option value="small">small</option>
+        <option value="medium" selected>medium (más lento, más preciso)</option>
+        <option value="large-v3">large-v3 (el más lento, máxima precisión)</option>
+      </select>
+      <p class="hint" id="reprocess-language-hint" style="display:none;">En modo reprocesar, el idioma y modelo de transcripción quedan fijados por la transcripción guardada (no se vuelve a transcribir).</p>
+
+      <label style="font-weight: normal; display: flex; align-items: center; gap: 6px; margin-top: 10px;">
+        <input type="checkbox" id="merge_sentences" name="merge_sentences">
+        Mantener frases completas (no cortar por pausas)
+      </label>
+      <p class="hint">La transcripción a veces corta una frase en varios bloques por una pausa breve (coma, respiración). Con esto activado, se fusionan los bloques consecutivos que forman una sola oración antes de generar la voz.</p>
+    </fieldset>
+
+    <button type="submit" id="submit-btn">Procesar video</button>
+  </form>
+
+  <div id="status"></div>
+
+  <div id="batch-progress-wrap" style="display:none; margin-top: 10px;">
+    <label style="margin:0 0 4px;">Progreso del lote</label>
+    <div id="batch-progress-track" class="progress-track"><div id="batch-progress-bar" class="progress-bar"></div></div>
+    <div id="batch-progress-label" class="progress-label">0 / 0</div>
+  </div>
+
+  <div id="progress-wrap">
+    <label id="progress-label-title" style="margin:0 0 4px;">Progreso del video</label>
+    <div id="progress-track" class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+    <div id="progress-pct" class="progress-label">0%</div>
+    <div id="eta">ETC: <span class="eta-value" id="eta-value">calculando...</span></div>
+  </div>
+
+  <div id="batch-results"></div>
+
+  <div id="terminal-wrap">
+    <div id="terminal"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const statusEl = document.getElementById('status');
+    const espeakFields = document.getElementById('espeak-fields');
+    const kokoroFields = document.getElementById('kokoro-fields');
+    const xttsFields = document.getElementById('xtts-fields');
+    const progressWrap = document.getElementById('progress-wrap');
+    const progressBar = document.getElementById('progress-bar');
+    const progressPct = document.getElementById('progress-pct');
+    const progressLabelTitle = document.getElementById('progress-label-title');
+    const batchProgressWrap = document.getElementById('batch-progress-wrap');
+    const batchProgressBar = document.getElementById('batch-progress-bar');
+    const batchProgressLabel = document.getElementById('batch-progress-label');
+    const batchResultsEl = document.getElementById('batch-results');
+    const terminalWrap = document.getElementById('terminal-wrap');
+    const terminal = document.getElementById('terminal');
+    const videoInput = document.getElementById('video');
+    const sourceDirInput = document.getElementById('source_dir');
+    const outputDirInput = document.getElementById('output_dir');
+    const transcriptPathInput = document.getElementById('transcript_path');
+    const singlePanel = document.getElementById('single-panel');
+    const batchPanel = document.getElementById('batch-panel');
+    const reprocessPanel = document.getElementById('reprocess-panel');
+    const languageFieldset = document.getElementById('language-fieldset');
+    const reprocessLanguageHint = document.getElementById('reprocess-language-hint');
+    const tabSingle = document.getElementById('tab-single');
+    const tabBatch = document.getElementById('tab-batch');
+    const tabReprocess = document.getElementById('tab-reprocess');
+    const submitBtn = document.getElementById('submit-btn');
+    const etaValueEl = document.getElementById('eta-value');
+
+    // --- Modo: un video / lote (carpeta) / reprocesar con otra voz ---
+    let mode = 'single';
+
+    function setMode(newMode) {
+      mode = newMode;
+      singlePanel.style.display = mode === 'single' ? 'block' : 'none';
+      batchPanel.style.display = mode === 'batch' ? 'block' : 'none';
+      reprocessPanel.style.display = mode === 'reprocess' ? 'block' : 'none';
+      tabSingle.classList.toggle('active', mode === 'single');
+      tabBatch.classList.toggle('active', mode === 'batch');
+      tabReprocess.classList.toggle('active', mode === 'reprocess');
+      videoInput.required = mode === 'single';
+      // En reprocess, el idioma/modelo de transcripción vienen fijados
+      // por el .dubbing_poc.json guardado — no tiene sentido pedirlos.
+      languageFieldset.querySelectorAll('select').forEach(s => s.disabled = mode === 'reprocess');
+      reprocessLanguageHint.style.display = mode === 'reprocess' ? 'block' : 'none';
+      submitBtn.textContent = mode === 'batch' ? 'Procesar lote' : mode === 'reprocess' ? 'Reprocesar con esta voz' : 'Procesar video';
+      try { localStorage.setItem('dubbing_poc_mode', mode); } catch (e) {}
+    }
+    tabSingle.addEventListener('click', () => setMode('single'));
+    tabBatch.addEventListener('click', () => setMode('batch'));
+    tabReprocess.addEventListener('click', () => setMode('reprocess'));
+
+    // --- Persistencia genérica de campos del form (todo salvo <input type=file>,
+    // que el navegador no permite prellenar por seguridad) ---
+    const PERSISTED_FIELD_KEYS = {
+      quality: 'dubbing_poc_quality',
+      espeak_voice: 'dubbing_poc_espeak_voice',
+      espeak_speed: 'dubbing_poc_espeak_speed',
+      espeak_pitch: 'dubbing_poc_espeak_pitch',
+      espeak_volume: 'dubbing_poc_espeak_volume',
+      kokoro_voice: 'dubbing_poc_kokoro_voice',
+      kokoro_speed: 'dubbing_poc_kokoro_speed',
+      xtts_voice: 'dubbing_poc_xtts_voice',
+      xtts_speed: 'dubbing_poc_xtts_speed',
+      xtts_temperature: 'dubbing_poc_xtts_temperature',
+      language: 'dubbing_poc_language',
+      asr_model_size: 'dubbing_poc_asr_model_size',
+      single_output_dir: 'dubbing_poc_single_output_dir',
+      source_dir: 'dubbing_poc_source_dir',
+      output_dir: 'dubbing_poc_output_dir',
+      transcript_path: 'dubbing_poc_transcript_path',
+    };
+    const PERSISTED_CHECKBOX_KEYS = {
+      merge_sentences: 'dubbing_poc_merge_sentences',
+    };
+
+    function restorePersistedFields() {
+      for (const [fieldName, storageKey] of Object.entries(PERSISTED_FIELD_KEYS)) {
+        let saved;
+        try { saved = localStorage.getItem(storageKey); } catch (e) { continue; }
+        if (saved === null) continue;
+        const radios = form.querySelectorAll(`input[type=radio][name="${fieldName}"]`);
+        if (radios.length) {
+          radios.forEach(r => { r.checked = (r.value === saved); });
+        } else {
+          const field = form.elements[fieldName];
+          if (field) field.value = saved;
+        }
+      }
+      for (const [fieldName, storageKey] of Object.entries(PERSISTED_CHECKBOX_KEYS)) {
+        let saved;
+        try { saved = localStorage.getItem(storageKey); } catch (e) { continue; }
+        if (saved === null) continue;
+        const field = form.elements[fieldName];
+        if (field) field.checked = saved === 'true';
+      }
+    }
+
+    function bindFieldPersistence() {
+      for (const [fieldName, storageKey] of Object.entries(PERSISTED_FIELD_KEYS)) {
+        const radios = form.querySelectorAll(`input[type=radio][name="${fieldName}"]`);
+        if (radios.length) {
+          radios.forEach(r => r.addEventListener('change', () => {
+            try { localStorage.setItem(storageKey, r.value); } catch (e) {}
+          }));
+          continue;
+        }
+        const field = form.elements[fieldName];
+        if (!field) continue;
+        const evt = field.tagName === 'SELECT' ? 'change' : 'input';
+        field.addEventListener(evt, () => {
+          try { localStorage.setItem(storageKey, field.value); } catch (e) {}
+        });
+      }
+      for (const [fieldName, storageKey] of Object.entries(PERSISTED_CHECKBOX_KEYS)) {
+        const field = form.elements[fieldName];
+        if (!field) continue;
+        field.addEventListener('change', () => {
+          try { localStorage.setItem(storageKey, field.checked); } catch (e) {}
+        });
+      }
+    }
+
+    restorePersistedFields();
+    bindFieldPersistence();
+
+    // --- Sliders de ajuste de voz: muestran su valor actual al lado ---
+    const SLIDER_IDS = [
+      'espeak_speed', 'espeak_pitch', 'espeak_volume',
+      'kokoro_speed', 'xtts_speed', 'xtts_temperature',
+    ];
+    function syncSliderLabel(id) {
+      const input = document.getElementById(id);
+      const label = document.getElementById(id + '_val');
+      if (input && label) label.textContent = input.value;
+    }
+    SLIDER_IDS.forEach(id => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      syncSliderLabel(id);
+      input.addEventListener('input', () => syncSliderLabel(id));
+    });
+
+    try {
+      const savedMode = localStorage.getItem('dubbing_poc_mode');
+      if (savedMode === 'batch' || savedMode === 'reprocess') setMode(savedMode);
+    } catch (e) {}
+
+    function syncQualityFields() {
+      const quality = form.querySelector('input[name=quality]:checked').value;
+      espeakFields.style.display = quality === 'fast' ? 'block' : 'none';
+      kokoroFields.style.display = quality === 'kokoro' ? 'block' : 'none';
+      xttsFields.style.display = quality === 'hq' ? 'block' : 'none';
+    }
+    form.querySelectorAll('input[name=quality]').forEach(r => r.addEventListener('change', syncQualityFields));
+    syncQualityFields();
+
+    let statusTimer = null;
+    let logsTimer = null;
+    let logsSince = 0;
+
+    function setProgress(pct) {
+      progressBar.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+    }
+
+    function setBatchProgress(index, total, currentFile) {
+      const pct = total ? Math.round(100 * (index - 1) / total) : 0;
+      batchProgressBar.style.width = pct + '%';
+      batchProgressLabel.textContent = `${index} / ${total}` + (currentFile ? ` — ${currentFile}` : '');
+    }
+
+    function renderBatchResults(results) {
+      if (!results || !results.length) { batchResultsEl.innerHTML = ''; return; }
+      batchResultsEl.innerHTML = results.map(r => {
+        if (r.status === 'done') return `<div class="ok">✓ ${r.file} → ${r.output}</div>`;
+        if (r.status === 'skipped') return `<div class="skip">↷ ${r.file}: ya existía, salteado (${r.output})</div>`;
+        return `<div class="fail">✗ ${r.file}: ${r.error}</div>`;
+      }).join('');
+    }
+
+    function appendLogLines(lines, isError) {
+      for (const line of lines) {
+        const div = document.createElement('div');
+        div.className = 'line' + (isError ? ' err' : '');
+        div.textContent = line;
+        terminal.appendChild(div);
+      }
+      if (lines.length) terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    const SUBMIT_MESSAGES = {
+      single: 'Subiendo video...',
+      batch: 'Buscando videos...',
+      reprocess: 'Leyendo transcripción guardada...',
+    };
+    const ENDPOINTS = { single: '/submit', batch: '/submit_batch', reprocess: '/reprocess' };
+
+    // --- Job activo: persistido para sobrevivir a cerrar/reabrir la pestaña ---
+    // Mientras el servidor (start.bat) siga corriendo, el job sigue en su
+    // memoria — al reabrir, reconectamos el polling en vez de perder todo.
+    function saveActiveJob(jobId, jobMode, etaKey, startedAt) {
+      try {
+        localStorage.setItem('dubbing_poc_active_job', JSON.stringify({ jobId, mode: jobMode, etaKey, startedAt }));
+      } catch (e) {}
+    }
+    function clearActiveJob() {
+      try { localStorage.removeItem('dubbing_poc_active_job'); } catch (e) {}
+    }
+    function loadActiveJob() {
+      try {
+        const raw = localStorage.getItem('dubbing_poc_active_job');
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+
+    // --- ETA: combina la velocidad observada en ESTE job con un
+    // historial de duraciones totales por configuración (calidad +
+    // modelo Whisper), guardado en localStorage. Así, apenas arranca un
+    // job la estimación ya parte de la experiencia previa, y a medida
+    // que hay señal real del job en curso, se le da cada vez más peso a
+    // esa señal en vivo (más precisa que el promedio histórico).
+    const ETA_HISTORY_KEY = 'dubbing_poc_eta_history';
+    const ETA_MAX_SAMPLES = 8;
+
+    function etaKeyFor(fd) {
+      const quality = fd.get('quality') || 'fast';
+      const asrModel = fd.get('asr_model_size') || 'medium';
+      return `${quality}|${asrModel}`;
+    }
+
+    function loadEtaHistory() {
+      try {
+        return JSON.parse(localStorage.getItem(ETA_HISTORY_KEY)) || {};
+      } catch (e) { return {}; }
+    }
+
+    function historicalEtaSeconds(etaKey) {
+      const history = loadEtaHistory();
+      const entry = history[etaKey];
+      return entry && entry.avgSeconds ? entry.avgSeconds : null;
+    }
+
+    function recordEtaSample(etaKey, totalSeconds) {
+      if (!etaKey || !totalSeconds || totalSeconds <= 0) return;
+      try {
+        const history = loadEtaHistory();
+        const entry = history[etaKey] || { avgSeconds: totalSeconds, samples: 0 };
+        // Promedio móvil simple, acotado a ETA_MAX_SAMPLES efectivas para
+        // que corridas recientes pesen más que las muy viejas.
+        const n = Math.min(entry.samples, ETA_MAX_SAMPLES);
+        entry.avgSeconds = (entry.avgSeconds * n + totalSeconds) / (n + 1);
+        entry.samples += 1;
+        history[etaKey] = entry;
+        localStorage.setItem(ETA_HISTORY_KEY, JSON.stringify(history));
+      } catch (e) {}
+    }
+
+    let etaState = null; // { key, startedAt, historicalTotal }
+
+    function startEtaTracking(etaKey, startedAt) {
+      etaState = {
+        key: etaKey,
+        startedAt: startedAt,
+        historicalTotal: historicalEtaSeconds(etaKey),
+      };
+      etaValueEl.textContent = etaState.historicalTotal
+        ? formatEta(etaState.historicalTotal)
+        : 'calculando...';
+    }
+
+    function formatEta(totalSeconds) {
+      const s = Math.max(0, Math.round(totalSeconds));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${m}:${String(rem).padStart(2, '0')}`;
+    }
+
+    function updateEta(progressPct) {
+      if (!etaState) return;
+      const elapsedSeconds = (Date.now() - etaState.startedAt) / 1000;
+
+      if (progressPct <= 0) {
+        etaValueEl.textContent = etaState.historicalTotal ? formatEta(etaState.historicalTotal) : 'calculando...';
+        return;
+      }
+      if (progressPct >= 100) {
+        etaValueEl.textContent = '0:00';
+        return;
+      }
+
+      const liveEstimateTotal = elapsedSeconds / (progressPct / 100);
+
+      let blendedTotal;
+      if (etaState.historicalTotal) {
+        // Al principio del job (poco elapsed) confiamos más en el
+        // histórico; a medida que avanza el progreso, la señal en vivo
+        // es más confiable y le damos más peso. weight va de ~0 a ~1
+        // siguiendo el propio progreso del job.
+        const liveWeight = Math.min(1, progressPct / 100 * 2); // llega a 1 en 50%
+        blendedTotal = etaState.historicalTotal * (1 - liveWeight) + liveEstimateTotal * liveWeight;
+      } else {
+        blendedTotal = liveEstimateTotal;
+      }
+
+      const remaining = Math.max(0, blendedTotal - elapsedSeconds);
+      etaValueEl.textContent = formatEta(remaining);
+    }
+
+    function finishEtaTracking() {
+      if (!etaState) return;
+      const totalSeconds = (Date.now() - etaState.startedAt) / 1000;
+      recordEtaSample(etaState.key, totalSeconds);
+      etaState = null;
+    }
+
+    function beginTracking(jobId, jobMode, etaKey, startedAt) {
+      saveActiveJob(jobId, jobMode, etaKey, startedAt);
+      statusEl.style.display = 'block';
+      progressWrap.style.display = 'block';
+      progressLabelTitle.textContent = jobMode === 'batch' ? 'Progreso del video actual' : 'Progreso del video';
+      batchProgressWrap.style.display = jobMode === 'batch' ? 'block' : 'none';
+      terminalWrap.style.display = 'block';
+      startEtaTracking(etaKey, startedAt);
+
+      if (statusTimer) clearInterval(statusTimer);
+      if (logsTimer) clearInterval(logsTimer);
+      statusTimer = setInterval(() => pollStatus(jobId, jobMode), 2000);
+      logsTimer = setInterval(() => pollLogs(jobId), 1500);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.style.display = 'block';
+      statusEl.className = '';
+      statusEl.textContent = SUBMIT_MESSAGES[mode];
+
+      progressWrap.style.display = 'block';
+      progressLabelTitle.textContent = mode === 'batch' ? 'Progreso del video actual' : 'Progreso del video';
+      batchProgressWrap.style.display = mode === 'batch' ? 'block' : 'none';
+      terminalWrap.style.display = 'block';
+      terminal.innerHTML = '';
+      batchResultsEl.innerHTML = '';
+      logsSince = 0;
+      setProgress(0);
+      setBatchProgress(0, 0, '');
+
+      const fd = new FormData(form);
+      const etaKey = etaKeyFor(fd);
+      const resp = await fetch(ENDPOINTS[mode], { method: 'POST', body: fd });
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        statusEl.className = 'error';
+        statusEl.textContent = data.error || 'Error al enviar la solicitud.';
+        progressWrap.style.display = 'none';
+        batchProgressWrap.style.display = 'none';
+        return;
+      }
+
+      if (mode === 'batch') {
+        setBatchProgress(1, data.file_count, '');
+      }
+
+      statusEl.textContent = 'Procesando... esto puede tardar varios minutos, sobre todo en modo alta calidad.';
+      beginTracking(data.job_id, mode, etaKey, Date.now());
+    });
+
+    async function pollStatus(jobId, jobMode) {
+      const resp = await fetch('/status/' + jobId);
+      if (resp.status === 404) {
+        // El servidor se reinició (start.bat) o el job ya no existe:
+        // no hay nada que reconectar, volvemos al form limpio.
+        clearInterval(statusTimer);
+        clearInterval(logsTimer);
+        clearActiveJob();
+        statusEl.className = 'error';
+        statusEl.textContent = 'No se encontró el proceso (¿se reinició el servidor?). Volvé a enviarlo.';
+        return;
+      }
+      const data = await resp.json();
+
+      setProgress(data.progress || 0);
+      updateEta(data.progress || 0);
+      if (data.is_batch) {
+        setBatchProgress(data.batch_index || 0, data.batch_total || 0, data.batch_current_file || '');
+        renderBatchResults(data.batch_results);
+      }
+
+      if (data.status === 'done') {
+        clearInterval(statusTimer);
+        setProgress(100);
+        statusEl.className = 'done';
+        if (data.is_batch) {
+          setBatchProgress(data.batch_total, data.batch_total, '');
+          statusEl.textContent = data.message || 'Lote terminado.';
+        } else if (data.skipped) {
+          statusEl.innerHTML = (data.message || 'Ya existía: se saltó el procesamiento.') +
+            ' <a href="' + data.download_url + '">Ver video existente</a>';
+        } else {
+          statusEl.innerHTML = 'Listo. <a href="' + data.download_url + '">Descargar video</a>';
+        }
+        finishEtaTracking();
+        clearActiveJob();
+        setTimeout(() => clearInterval(logsTimer), 2000);
+      } else if (data.status === 'error') {
+        clearInterval(statusTimer);
+        statusEl.className = 'error';
+        statusEl.textContent = 'Error: ' + data.error;
+        etaState = null; // no guardamos muestra: un job fallido no representa el tiempo normal
+        clearActiveJob();
+        setTimeout(() => clearInterval(logsTimer), 2000);
+      } else {
+        statusEl.textContent = data.message || 'Procesando...';
+      }
+    }
+
+    async function pollLogs(jobId) {
+      const resp = await fetch('/logs/' + jobId + '?since=' + logsSince);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      appendLogLines(data.lines, false);
+      logsSince = data.next;
+    }
+
+    // --- Al cargar la página: si había un job en curso, reconectar ---
+    (async function restoreActiveJob() {
+      const active = loadActiveJob();
+      if (!active || !active.jobId) return;
+
+      const resp = await fetch('/status/' + active.jobId);
+      if (!resp.ok) { clearActiveJob(); return; }
+      const data = await resp.json();
+
+      if (data.status === 'done' || data.status === 'error') {
+        // Terminó mientras no estábamos mirando: no reconectamos polling,
+        // pero igual mostramos el resultado final una vez.
+        clearActiveJob();
+        setMode(active.mode);
+        statusEl.style.display = 'block';
+        progressWrap.style.display = 'block';
+        setProgress(data.progress || 0);
+        etaValueEl.textContent = '0:00';
+        if (data.status === 'done') {
+          statusEl.className = 'done';
+          if (data.is_batch) {
+            statusEl.innerHTML = data.message || 'Lote terminado.';
+          } else if (data.skipped) {
+            statusEl.innerHTML = (data.message || 'Ya existía: se saltó el procesamiento.') +
+              ' <a href="' + data.download_url + '">Ver video existente</a>';
+          } else {
+            statusEl.innerHTML = 'Listo. <a href="' + data.download_url + '">Descargar video</a>';
+          }
+          if (data.is_batch) renderBatchResults(data.batch_results);
+        } else {
+          statusEl.className = 'error';
+          statusEl.textContent = 'Error: ' + data.error;
+        }
+        const logsResp = await fetch('/logs/' + active.jobId + '?since=0');
+        if (logsResp.ok) {
+          const logsData = await logsResp.json();
+          terminalWrap.style.display = 'block';
+          appendLogLines(logsData.lines, false);
+          logsSince = logsData.next;
+        }
+        return;
+      }
+
+      // Job sigue corriendo: restaurar modo, logs acumulados, y reconectar.
+      setMode(active.mode);
+      statusEl.style.display = 'block';
+      statusEl.className = '';
+      statusEl.textContent = data.message || 'Procesando...';
+
+      const logsResp = await fetch('/logs/' + active.jobId + '?since=0');
+      if (logsResp.ok) {
+        const logsData = await logsResp.json();
+        terminalWrap.style.display = 'block';
+        appendLogLines(logsData.lines, false);
+        logsSince = logsData.next;
+      }
+
+      beginTracking(active.jobId, active.mode, active.etaKey, active.startedAt || Date.now());
+      updateEta(data.progress || 0);
+    })();
+  </script>
+</body>
+</html>

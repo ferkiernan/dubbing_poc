@@ -1,0 +1,21 @@
+# POC base (obligatorias)
+faster-whisper>=1.0
+librosa>=0.10
+soundfile>=0.12
+numpy>=1.24
+pedalboard>=0.9  # time-stretch de alta calidad (align.py)
+
+# Necesario además del paquete de arriba: espeak-ng por fuera de pip.
+#   Linux (Debian/Ubuntu): sudo apt-get install espeak-ng ffmpeg
+#   Mac:                   brew install espeak-ng ffmpeg
+#   Windows:                instalar ffmpeg y espeak-ng manualmente y
+#                           agregarlos al PATH.
+
+# Opcional, para el backend de mayor calidad (--tts-backend xtts).
+# Pesado: instala torch y descarga ~2GB de modelo la primera vez.
+# coqui-tts>=0.28
+
+# Opcional, para el backend de calidad intermedia (--tts-backend kokoro).
+# Instala torch (CPU) y descarga ~330MB de modelo la primera vez.
+# Licencia Apache 2.0 (sin restricciones de uso comercial).
+# kokoro>=0.9.4

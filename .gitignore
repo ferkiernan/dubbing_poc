@@ -1,0 +1,14 @@
+.venv311/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Archivos de prueba/uso local, no versionar
+*.mkv
+*.mp4
+*.wav
+*_stdout.log
+*_stderr.log
+webapp/uploads/
+webapp/outputs/
+*.dubbing_poc.json
