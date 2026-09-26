@@ -4,8 +4,8 @@ import os
 from abc import ABC, abstractmethod
 from typing import Callable, List, Optional
 
-from dubbing_poc.registry import register
-from dubbing_poc.segments import Segment
+from dubbing_engine.registry import register
+from dubbing_engine.segments import Segment
 
 TranscribeProgressCallback = Callable[..., None]
 

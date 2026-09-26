@@ -1,7 +1,7 @@
 import numpy as np
 import soundfile as sf
 
-from dubbing_poc.align import stretch_to_duration
+from dubbing_engine.align import stretch_to_duration
 
 
 def _write_tone(path, duration, sr=22050, freq=220.0):

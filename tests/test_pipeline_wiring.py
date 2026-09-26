@@ -11,9 +11,9 @@ import subprocess
 
 import pytest
 
-from dubbing_poc import audio_io, align
-from dubbing_poc.registry import get as get_backend
-from dubbing_poc.segments import Segment
+from dubbing_engine import audio_io, align
+from dubbing_engine.registry import get as get_backend
+from dubbing_engine.segments import Segment
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ffmpeg") is None or shutil.which("espeak-ng") is None,

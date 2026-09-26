@@ -1,4 +1,4 @@
-# dubbing_poc
+# dubbing_engine
 
 POC local para cambiar la voz de un video, manteniendo el tiempo de cada
 frase. Corre 100% en tu máquina, sin mandar nada a la nube.
@@ -72,7 +72,7 @@ python main.py run entrada.mp4 -o salida.mp4 --voice es-f1 --lang es --espeak-sp
 Voces incluidas en esta POC (motor `espeak-ng`, calidad "robótica" pero
 gratis, liviano y sin descargas): `es-f1`, `es-f2`, `es-f3` (femeninas),
 `es-m1` (masculina), y sus equivalentes en inglés (`en-f1`, `en-f2`,
-`en-m1`). Se agregan nuevas en `dubbing_poc/voices.py`.
+`en-m1`). Se agregan nuevas en `dubbing_engine/voices.py`.
 
 El modelo de transcripción por default es `medium` (mejor precisión que
 `small` a costa de tardar más y descargar un modelo más pesado la
@@ -108,9 +108,9 @@ El log del job indica cuándo esto ocurre ("Transcripción reusada..."). Es
 un match por nombre de archivo, no por contenido: si reemplazás el
 archivo manteniendo el mismo nombre, se reusaría igual la transcripción
 vieja (para forzar una re-transcripción, subilo con otro nombre o
-borrá el `.dubbing_poc.json` correspondiente en la carpeta de salida).
+borrá el `.dubbing_engine.json` correspondiente en la carpeta de salida).
 Esto es adicional al modo "Reprocesar" manual, que sigue disponible
-para apuntar a un `.dubbing_poc.json` específico.
+para apuntar a un `.dubbing_engine.json` específico.
 
 ### Carpeta de salida y salteo de videos ya procesados (interfaz web)
 
@@ -140,7 +140,7 @@ completas" (interfaz web), se fusionan los segmentos consecutivos que
 no terminan en puntuación terminal (`.`, `!`, `?`, `…`) y están
 separados por un silencio corto (≤0.6s por defecto), siempre que la
 duración fusionada no supere los 12s (ver
-`dubbing_poc/segments.py::merge_sentence_segments`). Es una heurística
+`dubbing_engine/segments.py::merge_sentence_segments`). Es una heurística
 por reglas, no un modelo de lenguaje: rápida, determinística y sin
 dependencias nuevas.
 
@@ -173,13 +173,13 @@ el modelo de Whisper (para no requerir red en CI).
 Todo backend se registra con un decorador y se selecciona por nombre
 desde la CLI, sin tocar el resto del código:
 
-- `dubbing_poc/asr.py` — transcripción (`whisper` registrado).
-- `dubbing_poc/tts.py` — síntesis de voz (`espeak`, `xtts`, `kokoro` registrados).
-- `dubbing_poc/voices.py` — catálogo de voces por backend.
-- `dubbing_poc/segments.py` — tipo `Segment` y fusión opcional de frases cortadas.
-- `dubbing_poc/align.py` — ajuste de duración por frase.
-- `dubbing_poc/audio_io.py` — extracción, timeline, mux con ffmpeg.
-- `dubbing_poc/pipeline.py` — orquesta todo lo anterior.
+- `dubbing_engine/asr.py` — transcripción (`whisper` registrado).
+- `dubbing_engine/tts.py` — síntesis de voz (`espeak`, `xtts`, `kokoro` registrados).
+- `dubbing_engine/voices.py` — catálogo de voces por backend.
+- `dubbing_engine/segments.py` — tipo `Segment` y fusión opcional de frases cortadas.
+- `dubbing_engine/align.py` — ajuste de duración por frase.
+- `dubbing_engine/audio_io.py` — extracción, timeline, mux con ffmpeg.
+- `dubbing_engine/pipeline.py` — orquesta todo lo anterior.
 
 ## Backend de voz: Kokoro-82M
 
@@ -196,7 +196,7 @@ python main.py run entrada.mp4 -o salida.mp4 --tts-backend kokoro --voice en-f1 
 Requiere `espeak-ng` instalado (ya es dependencia del proyecto) como
 fallback de fonemización para idiomas no ingleses. La primera vez
 descarga ~330MB de pesos desde Hugging Face. Voces curadas en
-`dubbing_poc/voices.py::KOKORO_VOICE_PRESETS` (inglés US/UK y español,
+`dubbing_engine/voices.py::KOKORO_VOICE_PRESETS` (inglés US/UK y español,
 masculinas y femeninas); también acepta pasar directamente un código
 nativo de Kokoro (ej. `--voice af_sarah`) aunque no esté en el catálogo.
 

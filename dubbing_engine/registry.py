@@ -3,7 +3,7 @@
 Para agregar un backend nuevo (por ejemplo un traductor, un motor TTS
 distinto, o un conversor de voz tipo RVC) alcanza con:
 
-    from dubbing_poc.registry import register
+    from dubbing_engine.registry import register
 
     @register("asr", "mi_backend_nuevo")
     class MiBackend(ASRBackend):

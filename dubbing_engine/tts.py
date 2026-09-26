@@ -25,8 +25,8 @@ from typing import List, Optional
 
 import numpy as np
 
-from dubbing_poc.registry import register
-from dubbing_poc.voices import ESPEAK_VOICE_PRESETS, KOKORO_VOICE_PRESETS
+from dubbing_engine.registry import register
+from dubbing_engine.voices import ESPEAK_VOICE_PRESETS, KOKORO_VOICE_PRESETS
 
 KOKORO_SAMPLE_RATE = 24000
 

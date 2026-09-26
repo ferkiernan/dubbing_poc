@@ -5,7 +5,7 @@ pipeline.run), y debe quedar registrado en el log / batch_results."""
 
 from unittest.mock import patch
 
-from dubbing_poc.webapp.app import Job, _run_batch_job, _run_job
+from dubbing_engine.webapp.app import Job, _run_batch_job, _run_job
 
 
 def _base_opts():
@@ -26,7 +26,7 @@ def test_run_job_skips_when_output_already_exists(tmp_path):
     input_path.write_bytes(b"fake input")
 
     job = Job(id="job1")
-    with patch("dubbing_poc.webapp.app.pipeline.run") as mock_run:
+    with patch("dubbing_engine.webapp.app.pipeline.run") as mock_run:
         _run_job(job, str(input_path), str(output_path), _base_opts(), "input.mp4")
 
     mock_run.assert_not_called()
@@ -42,9 +42,9 @@ def test_run_job_processes_when_output_missing(tmp_path):
     input_path.write_bytes(b"fake input")
 
     job = Job(id="job2")
-    with patch("dubbing_poc.webapp.app.pipeline.run") as mock_run:
+    with patch("dubbing_engine.webapp.app.pipeline.run") as mock_run:
         mock_run.return_value.segments = []
-        with patch("dubbing_poc.webapp.app._save_transcript", return_value="t.json"):
+        with patch("dubbing_engine.webapp.app._save_transcript", return_value="t.json"):
             _run_job(job, str(input_path), str(output_path), _base_opts(), "input.mp4")
 
     mock_run.assert_called_once()
@@ -65,14 +65,14 @@ def test_run_batch_job_skips_existing_and_continues(tmp_path):
 
     opts = _base_opts()
     # El nombre de salida esperado debe coincidir con _output_filename.
-    from dubbing_poc.webapp.app import _output_filename
+    from dubbing_engine.webapp.app import _output_filename
     existing_output = out_dir / _output_filename("already_done", ".mp4", opts["voice"])
     existing_output.write_bytes(b"already rendered")
 
     job = Job(id="batch1")
-    with patch("dubbing_poc.webapp.app.pipeline.run") as mock_run:
+    with patch("dubbing_engine.webapp.app.pipeline.run") as mock_run:
         mock_run.return_value.segments = []
-        with patch("dubbing_poc.webapp.app._save_transcript", return_value="t.json"):
+        with patch("dubbing_engine.webapp.app._save_transcript", return_value="t.json"):
             _run_batch_job(job, [str(existing_input), str(pending_input)], str(out_dir), opts)
 
     # Solo se procesa el segundo (pending); el primero se saltea.

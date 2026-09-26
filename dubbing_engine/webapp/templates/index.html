@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>dubbing_poc</title>
+<title>dubbing_engine</title>
 <style>
   body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; color: #222; }
   h1 { font-size: 1.4rem; }
@@ -51,7 +51,7 @@
 </style>
 </head>
 <body>
-  <h1>dubbing_poc — cambiar voz de un video</h1>
+  <h1>dubbing_engine — cambiar voz de un video</h1>
   <p class="hint">Ej: video narrado con acento indio → salida con voz de acento estadounidense (elegí idioma "en" e inglés US como voz destino).</p>
 
   <div class="mode-tabs">
@@ -83,8 +83,8 @@
 
     <div id="reprocess-panel">
       <fieldset>
-        <label for="transcript_path">Archivo de transcripción (.dubbing_poc.json)</label>
-        <input type="text" id="transcript_path" name="transcript_path" placeholder="C:\Videos\salida\mi_video_voz_es-f1.dubbing_poc.json">
+        <label for="transcript_path">Archivo de transcripción (.dubbing_engine.json)</label>
+        <input type="text" id="transcript_path" name="transcript_path" placeholder="C:\Videos\salida\mi_video_voz_es-f1.dubbing_engine.json">
         <p class="hint">Se genera automáticamente junto a cada video procesado. Reusa la transcripción guardada ahí para generar el mismo video con otra voz, sin volver a transcribir (mucho más rápido). El video original debe seguir existiendo en su ubicación de entrada.</p>
       </fieldset>
     </div>
@@ -252,11 +252,11 @@
       tabReprocess.classList.toggle('active', mode === 'reprocess');
       videoInput.required = mode === 'single';
       // En reprocess, el idioma/modelo de transcripción vienen fijados
-      // por el .dubbing_poc.json guardado — no tiene sentido pedirlos.
+      // por el .dubbing_engine.json guardado — no tiene sentido pedirlos.
       languageFieldset.querySelectorAll('select').forEach(s => s.disabled = mode === 'reprocess');
       reprocessLanguageHint.style.display = mode === 'reprocess' ? 'block' : 'none';
       submitBtn.textContent = mode === 'batch' ? 'Procesar lote' : mode === 'reprocess' ? 'Reprocesar con esta voz' : 'Procesar video';
-      try { localStorage.setItem('dubbing_poc_mode', mode); } catch (e) {}
+      try { localStorage.setItem('dubbing_engine_mode', mode); } catch (e) {}
     }
     tabSingle.addEventListener('click', () => setMode('single'));
     tabBatch.addEventListener('click', () => setMode('batch'));
@@ -265,25 +265,25 @@
     // --- Persistencia genérica de campos del form (todo salvo <input type=file>,
     // que el navegador no permite prellenar por seguridad) ---
     const PERSISTED_FIELD_KEYS = {
-      quality: 'dubbing_poc_quality',
-      espeak_voice: 'dubbing_poc_espeak_voice',
-      espeak_speed: 'dubbing_poc_espeak_speed',
-      espeak_pitch: 'dubbing_poc_espeak_pitch',
-      espeak_volume: 'dubbing_poc_espeak_volume',
-      kokoro_voice: 'dubbing_poc_kokoro_voice',
-      kokoro_speed: 'dubbing_poc_kokoro_speed',
-      xtts_voice: 'dubbing_poc_xtts_voice',
-      xtts_speed: 'dubbing_poc_xtts_speed',
-      xtts_temperature: 'dubbing_poc_xtts_temperature',
-      language: 'dubbing_poc_language',
-      asr_model_size: 'dubbing_poc_asr_model_size',
-      single_output_dir: 'dubbing_poc_single_output_dir',
-      source_dir: 'dubbing_poc_source_dir',
-      output_dir: 'dubbing_poc_output_dir',
-      transcript_path: 'dubbing_poc_transcript_path',
+      quality: 'dubbing_engine_quality',
+      espeak_voice: 'dubbing_engine_espeak_voice',
+      espeak_speed: 'dubbing_engine_espeak_speed',
+      espeak_pitch: 'dubbing_engine_espeak_pitch',
+      espeak_volume: 'dubbing_engine_espeak_volume',
+      kokoro_voice: 'dubbing_engine_kokoro_voice',
+      kokoro_speed: 'dubbing_engine_kokoro_speed',
+      xtts_voice: 'dubbing_engine_xtts_voice',
+      xtts_speed: 'dubbing_engine_xtts_speed',
+      xtts_temperature: 'dubbing_engine_xtts_temperature',
+      language: 'dubbing_engine_language',
+      asr_model_size: 'dubbing_engine_asr_model_size',
+      single_output_dir: 'dubbing_engine_single_output_dir',
+      source_dir: 'dubbing_engine_source_dir',
+      output_dir: 'dubbing_engine_output_dir',
+      transcript_path: 'dubbing_engine_transcript_path',
     };
     const PERSISTED_CHECKBOX_KEYS = {
-      merge_sentences: 'dubbing_poc_merge_sentences',
+      merge_sentences: 'dubbing_engine_merge_sentences',
     };
 
     function restorePersistedFields() {
@@ -354,7 +354,7 @@
     });
 
     try {
-      const savedMode = localStorage.getItem('dubbing_poc_mode');
+      const savedMode = localStorage.getItem('dubbing_engine_mode');
       if (savedMode === 'batch' || savedMode === 'reprocess') setMode(savedMode);
     } catch (e) {}
 
@@ -413,15 +413,15 @@
     // memoria — al reabrir, reconectamos el polling en vez de perder todo.
     function saveActiveJob(jobId, jobMode, etaKey, startedAt) {
       try {
-        localStorage.setItem('dubbing_poc_active_job', JSON.stringify({ jobId, mode: jobMode, etaKey, startedAt }));
+        localStorage.setItem('dubbing_engine_active_job', JSON.stringify({ jobId, mode: jobMode, etaKey, startedAt }));
       } catch (e) {}
     }
     function clearActiveJob() {
-      try { localStorage.removeItem('dubbing_poc_active_job'); } catch (e) {}
+      try { localStorage.removeItem('dubbing_engine_active_job'); } catch (e) {}
     }
     function loadActiveJob() {
       try {
-        const raw = localStorage.getItem('dubbing_poc_active_job');
+        const raw = localStorage.getItem('dubbing_engine_active_job');
         return raw ? JSON.parse(raw) : null;
       } catch (e) { return null; }
     }
@@ -432,7 +432,7 @@
     // job la estimación ya parte de la experiencia previa, y a medida
     // que hay señal real del job en curso, se le da cada vez más peso a
     // esa señal en vivo (más precisa que el promedio histórico).
-    const ETA_HISTORY_KEY = 'dubbing_poc_eta_history';
+    const ETA_HISTORY_KEY = 'dubbing_engine_eta_history';
     const ETA_MAX_SAMPLES = 8;
 
     function etaKeyFor(fd) {

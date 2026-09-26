@@ -1,14 +1,14 @@
 import argparse
 import sys
 
-from dubbing_poc import pipeline
-from dubbing_poc.registry import available
-from dubbing_poc.voices import list_espeak_voices
+from dubbing_engine import pipeline
+from dubbing_engine.registry import available
+from dubbing_engine.voices import list_espeak_voices
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="dubbing_poc",
+        prog="dubbing_engine",
         description=(
             "Cambia la voz de un video local, manteniendo el tiempo de "
             "cada frase. POC: transcribe -> re-sintetiza con otra voz -> "

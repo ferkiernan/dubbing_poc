@@ -16,7 +16,7 @@ IMPORTANTE — requiere un virtualenv SEPARADO del entorno productivo:
     # Windows:
     .venv-directml-experiment\\Scripts\\activate
     pip install torch-directml coqui-tts
-    python -m dubbing_poc.experiments.try_directml_xtts
+    python -m dubbing_engine.experiments.try_directml_xtts
 
 Este script NO instala nada por sí mismo. Si falta torch_directml,
 imprime instrucciones y termina. Cualquier falla durante la carga o
@@ -80,7 +80,7 @@ def main():
             "  python -m venv .venv-directml-experiment\n"
             "  .venv-directml-experiment\\Scripts\\activate\n"
             "  pip install torch-directml coqui-tts\n"
-            "  python -m dubbing_poc.experiments.try_directml_xtts\n"
+            "  python -m dubbing_engine.experiments.try_directml_xtts\n"
         )
         sys.exit(1)
 

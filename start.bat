@@ -32,7 +32,7 @@ if not exist "%VENV_PY%" (
     exit /b 1
 )
 
-echo Iniciando dubbing_poc en http://127.0.0.1:5000 ...
-"%VENV_PY%" -m dubbing_poc.webapp.app
+echo Iniciando dubbing_engine en http://127.0.0.1:5000 ...
+"%VENV_PY%" -m dubbing_engine.webapp.app
 
 pause

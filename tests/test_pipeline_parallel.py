@@ -13,11 +13,11 @@ import threading
 
 import pytest
 
-from dubbing_poc import pipeline
-from dubbing_poc.asr import ASRBackend
-from dubbing_poc.registry import register
-from dubbing_poc.segments import Segment
-from dubbing_poc.tts import TTSBackend
+from dubbing_engine import pipeline
+from dubbing_engine.asr import ASRBackend
+from dubbing_engine.registry import register
+from dubbing_engine.segments import Segment
+from dubbing_engine.tts import TTSBackend
 
 pytestmark = pytest.mark.skipif(
     shutil.which("ffmpeg") is None or shutil.which("espeak-ng") is None,

@@ -7,7 +7,7 @@ modelos (usa un ASR fake con segmentos fijos, igual que
 tests/test_pipeline_parallel.py).
 
 Uso:
-    python -m dubbing_poc.experiments.bench_espeak_parallel [N_FRASES]
+    python -m dubbing_engine.experiments.bench_espeak_parallel [N_FRASES]
 """
 
 import os
@@ -17,10 +17,10 @@ import sys
 import tempfile
 import time
 
-from dubbing_poc import pipeline
-from dubbing_poc.asr import ASRBackend
-from dubbing_poc.registry import register
-from dubbing_poc.segments import Segment
+from dubbing_engine import pipeline
+from dubbing_engine.asr import ASRBackend
+from dubbing_engine.registry import register
+from dubbing_engine.segments import Segment
 
 
 def _make_segments(n: int):

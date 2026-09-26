@@ -10,5 +10,5 @@ __version__ = "0.1.0"
 # Importar estos módulos registra sus backends (decorador @register).
 # Los imports pesados (torch, faster-whisper, TTS) están adentro de
 # cada __init__ de backend, así que esto es liviano.
-from dubbing_poc import asr, tts  # noqa: E402,F401
+from dubbing_engine import asr, tts  # noqa: E402,F401
 

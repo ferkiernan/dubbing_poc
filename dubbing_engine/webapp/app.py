@@ -1,11 +1,11 @@
-"""Interfaz web local para dubbing_poc.
+"""Interfaz web local para dubbing_engine.
 
 Server Flask simple: subís un video, elegís calidad de voz (espeak
 rápido/robótico o xtts natural), idioma y voz, y el pipeline corre en
 un hilo de fondo. La página consulta el progreso y ofrece el video
 final para descargar.
 
-Correr con: python -m dubbing_poc.webapp.app
+Correr con: python -m dubbing_engine.webapp.app
 Abre en: http://127.0.0.1:5000
 """
 
@@ -26,9 +26,9 @@ os.environ.setdefault("COQUI_TOS_AGREED", "1")
 
 from flask import Flask, jsonify, render_template, request, send_file
 
-from dubbing_poc import pipeline
-from dubbing_poc.segments import Segment
-from dubbing_poc.voices import ESPEAK_VOICE_PRESETS, KOKORO_VOICE_PRESETS
+from dubbing_engine import pipeline
+from dubbing_engine.segments import Segment
+from dubbing_engine.voices import ESPEAK_VOICE_PRESETS, KOKORO_VOICE_PRESETS
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -48,7 +48,7 @@ XTTS_US_VOICES = [
     "Craig Gutsy",
 ]
 
-# Voces de Kokoro (subconjunto curado, ver dubbing_poc/voices.py).
+# Voces de Kokoro (subconjunto curado, ver dubbing_engine/voices.py).
 KOKORO_VOICES = list(KOKORO_VOICE_PRESETS.keys())
 
 app = Flask(__name__)
@@ -85,7 +85,7 @@ STAGE_LABELS = {
 
 
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".avi", ".webm", ".m4v"}
-TRANSCRIPT_EXTENSION = ".dubbing_poc.json"
+TRANSCRIPT_EXTENSION = ".dubbing_engine.json"
 
 
 def _sanitize_voice_id(voice: str) -> str:
@@ -139,7 +139,7 @@ def _find_cached_transcript(
     original_filename: str, language: str, asr_model_size: str,
     search_dir: str = OUTPUT_DIR,
 ) -> Optional[dict]:
-    """Busca en search_dir una transcripción ya guardada (.dubbing_poc.json)
+    """Busca en search_dir una transcripción ya guardada (.dubbing_engine.json)
     para el mismo archivo de entrada (por nombre) y la misma config de ASR
     (idioma + tamaño de modelo). Si la encuentra, se reusa y se salta la
     transcripción por completo — solo matchea por nombre+config, no por
@@ -464,11 +464,11 @@ def submit():
 @app.route("/reprocess", methods=["POST"])
 def reprocess():
     """Re-sintetiza un video ya procesado con otra voz, reusando la
-    transcripción guardada (.dubbing_poc.json junto al output anterior)
+    transcripción guardada (.dubbing_engine.json junto al output anterior)
     en vez de transcribir de nuevo."""
     transcript_path = (request.form.get("transcript_path") or "").strip()
     if not transcript_path:
-        return jsonify({"error": "Indicá la ruta del archivo .dubbing_poc.json a reusar."}), 400
+        return jsonify({"error": "Indicá la ruta del archivo .dubbing_engine.json a reusar."}), 400
     if not os.path.isfile(transcript_path):
         return jsonify({"error": f"No se encontró el archivo: {transcript_path}"}), 400
 

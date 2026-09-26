@@ -8,9 +8,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple
 
-from dubbing_poc import audio_io, align
-from dubbing_poc.registry import get as get_backend
-from dubbing_poc.segments import Segment, merge_sentence_segments
+from dubbing_engine import audio_io, align
+from dubbing_engine.registry import get as get_backend
+from dubbing_engine.segments import Segment, merge_sentence_segments
 
 ProgressCallback = Callable[..., None]
 
@@ -77,7 +77,7 @@ def run(
     al reprocesar sin re-transcribir."""
     tts_kwargs = tts_kwargs or {}
 
-    with tempfile.TemporaryDirectory(prefix="dubbing_poc_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="dubbing_engine_") as tmpdir:
         if precomputed_segments is not None:
             segments = precomputed_segments
             _notify(on_progress, "transcribed", count=len(segments), reused=True)

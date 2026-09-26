@@ -11,4 +11,8 @@ __pycache__/
 *_stderr.log
 webapp/uploads/
 webapp/outputs/
+dubbing_engine/webapp/uploads/
+dubbing_engine/webapp/outputs/
 *.dubbing_poc.json
+*.dubbing_engine.json
+.claude/

@@ -1,7 +1,7 @@
 """Tests de la heurística de fusión de segmentos (merge_sentence_segments):
 evita que una oración cortada por una pausa breve llegue partida al TTS."""
 
-from dubbing_poc.segments import Segment, merge_sentence_segments
+from dubbing_engine.segments import Segment, merge_sentence_segments
 
 
 def test_merges_segment_cut_mid_sentence_by_short_gap():

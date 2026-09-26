@@ -1,10 +1,10 @@
-"""Test del auto-cache de transcripción: si ya existe un .dubbing_poc.json
+"""Test del auto-cache de transcripción: si ya existe un .dubbing_engine.json
 para el mismo nombre de archivo + idioma + modelo ASR, _find_cached_transcript
 debe encontrarlo, para que _process_one no vuelva a transcribir."""
 
 import json
 
-from dubbing_poc.webapp.app import TRANSCRIPT_EXTENSION, _find_cached_transcript
+from dubbing_engine.webapp.app import TRANSCRIPT_EXTENSION, _find_cached_transcript
 
 
 def _write_transcript(dir_path, filename, original_filename, language, asr_model_size):
